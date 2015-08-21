@@ -8,25 +8,39 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import com.google.gson.*;
-import model.*;
+import model.AccountDetails;
+import model.CredentialsModel;
+import model.IndividualDetailsModel;
+import model.IndividualSummaryModel;
+import model.TokenResult;
+import model.Transaction;
+import model.WidgetModel;
 
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.codehaus.jackson.map.JsonMappingException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.jboss.resteasy.client.jaxrs.ResteasyClient;
+import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.ModelAndView;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 import com.microsoft.aad.adal4j.AuthenticationContext;
 import com.microsoft.aad.adal4j.ClientCredential;
 
@@ -57,12 +71,17 @@ public class HomeController {
 	 * @throws InterruptedException
 	 */
 	@RequestMapping(value = "/Connect", method = RequestMethod.POST)
-	public ModelAndView connect(CredentialsModel form) throws Exception {
+	public ModelAndView connect(CredentialsModel form) throws InterruptedException, UnsupportedOperationException, ClientProtocolException, IOException {
 		trimFormDetails(form);
-
-		authenticationToken = acquireOAuthAccessToken(form.getClientId(), form.getSecretKey(), form.getResourceId(), form.getAuthority());
-		String token = acquireUserSessionToken(new DefaultHttpClient(), form.getApi(), authenticationToken);
-
+		//get the application token
+		String applicationToken = null;
+		applicationToken = getNewToken();
+		
+		//get the miicard sessiontoken
+		//String token = acquireUserSessionToken(new DefaultHttpClient(), form.getApi(), acquireOAuthAccessToken(form.getClientId(), form.getSecretKey(), form.getResourceId(), form.getAuthority()));
+		String token = callBankvalidation(form.getClientId(), "12345", applicationToken);
+		
+		
 		ModelAndView modelAndView = new ModelAndView("Widget");
 		modelAndView.addObject("widgetmodel", new WidgetModel(form.getFullCDNPath(), token));
 		return modelAndView;
@@ -282,5 +301,56 @@ public class HomeController {
 			return url.substring(0, url.length()-1);
 		}
 		return url;
+	}
+	private String getNewToken() {
+		/*ResteasyClient restEasyClient = new ResteasyClientBuilder().build();
+		ResteasyWebTarget target = restEasyClient.target("http://np39.c1.dev/security/oauth/token?client_id=prosperPublicSite&client_secret=xYuklmasdklop&grant_type=client_credentials");
+		Response response = target.request().post(null);
+		OAuth2AccessToken token = response.readEntity(OAuth2AccessToken.class);
+
+		return "bearer " + token.getValue();*/
+		return "bearer cfe54a52-4902-406c-8322-1b9034f10212";
+	}
+	
+	private String callBankvalidation(String userID, String listingID, String auth) throws UnsupportedOperationException, ClientProtocolException, IOException {
+		boolean status = false;
+
+		ResteasyClient restEasyClient = new ResteasyClientBuilder().establishConnectionTimeout(1, TimeUnit.SECONDS).socketTimeout(40, TimeUnit.SECONDS).build();
+		StringBuilder sb = new StringBuilder();
+		sb.append("http://10.121.184.125/bankvalidation/vendor/directid/sessiontoken?user_id=");
+		sb.append(userID);
+		sb.append("&listing_id=");
+		sb.append(listingID);
+		
+		String bankvalidationAPI = sb.toString();
+		
+		HttpGet request = new HttpGet(bankvalidationAPI);
+		request.setHeader("Authorization", auth);
+		
+		DefaultHttpClient defaultHttpClient = new DefaultHttpClient();
+		try {
+			return extractTokenFromResponse(defaultHttpClient.execute(request).getEntity().getContent());
+		} catch (Exception e) {
+			throw new RuntimeException("Unable to get the Api Token");
+		}
+		/*ResteasyWebTarget target = restEasyClient.target(bankvalidationAPI);
+		Response response = null;
+		try {
+			response = target
+					.request()
+					.header("Authorization", auth)
+					.get();
+			if (response.getStatus() == HttpStatus.SC_OK) {
+				status = true;
+			}
+		} catch (Exception ex) {
+			String statusId = (response == null) ? "null" : String.valueOf(response.getStatus());
+			
+		} finally {
+			if (response != null) {
+				response.close();
+			}
+		}*/
+
 	}
 }

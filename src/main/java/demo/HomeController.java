@@ -15,6 +15,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import javax.ws.rs.core.Response;
+
 import model.AccountDetails;
 import model.CredentialsModel;
 import model.IndividualDetailsModel;
@@ -23,12 +25,14 @@ import model.TokenResult;
 import model.Transaction;
 import model.WidgetModel;
 
+import org.apache.commons.httpclient.HttpStatus;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -309,7 +313,7 @@ public class HomeController {
 		OAuth2AccessToken token = response.readEntity(OAuth2AccessToken.class);
 
 		return "bearer " + token.getValue();*/
-		return "bearer cfe54a52-4902-406c-8322-1b9034f10212";
+		return "bearer 24849f6c-71a0-4191-9f7b-943c4c0ca07b";
 	}
 	
 	private String callBankvalidation(String userID, String listingID, String auth) throws UnsupportedOperationException, ClientProtocolException, IOException {
@@ -324,7 +328,7 @@ public class HomeController {
 		
 		String bankvalidationAPI = sb.toString();
 		
-		HttpGet request = new HttpGet(bankvalidationAPI);
+		/*HttpGet request = new HttpGet(bankvalidationAPI);
 		request.setHeader("Authorization", auth);
 		
 		DefaultHttpClient defaultHttpClient = new DefaultHttpClient();
@@ -332,9 +336,13 @@ public class HomeController {
 			return extractTokenFromResponse(defaultHttpClient.execute(request).getEntity().getContent());
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to get the Api Token");
-		}
-		/*ResteasyWebTarget target = restEasyClient.target(bankvalidationAPI);
+		}*/
+		
+		
+		
+		ResteasyWebTarget target = restEasyClient.target(bankvalidationAPI);
 		Response response = null;
+		TokenResult result = null;
 		try {
 			response = target
 					.request()
@@ -342,6 +350,9 @@ public class HomeController {
 					.get();
 			if (response.getStatus() == HttpStatus.SC_OK) {
 				status = true;
+				
+				result = response.readEntity(TokenResult.class);
+				//System.out.println(result.toString());
 			}
 		} catch (Exception ex) {
 			String statusId = (response == null) ? "null" : String.valueOf(response.getStatus());
@@ -350,7 +361,7 @@ public class HomeController {
 			if (response != null) {
 				response.close();
 			}
-		}*/
-
+		}
+		return result.getToken();
 	}
 }
